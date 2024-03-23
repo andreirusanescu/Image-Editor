@@ -62,17 +62,11 @@ int ctoi(char *s)
 // verifica daca un numar este putere a lui 2;
 int power2(int n)
 {
-	while (1) {
-		int cnt = 0;
-		while (n % 2 == 0 && n != 0) {
-			n /= 2;
+	int cnt = 0;
+	for (int i = 31; i >= 0; --i)
+		if (n & (1 << i))
 			cnt++;
-		}
-		if (n == 1 && cnt)
-			return 1;
-		else
-			return 0;
-	}
+	return cnt == 1;
 }
 
 // restrange valorile la [0, 255];
