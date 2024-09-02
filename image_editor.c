@@ -1,32 +1,33 @@
-// Copyright Andrei-Marian Rusanescu 311CAb 2023-2024
+/* Copyright Andrei-Marian Rusanescu 311CAb 2023-2024 */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
+// buffer len
 #define commmax 255
 
-// structura in care se tin culorile in format rgb (r, g, b);
+// structure that holds values in rgb format for color matrix
 typedef struct {
 	int r, g, b;
 } rgb_t;
 
-// structura care tine datele despre o imagine:
+// structure that holds the data for an image
 typedef struct {
-	char format[3]; // memoreaza tipul imaginii (P2, P3 etc);
-	int m, n; // coloane, linii;
-	int maxv; // valoarea maxima a intensitatii pixelilor;
-	int **matrix; // imagine gri;
-	rgb_t **color; // imagine color
-	int loaded; // spune daca o imagine e incarcata
-	int x1, y1, x2, y2; // coordonatele selectiei;
+	char format[3]; // stores the type of an image (P2, P3 etc)
+	int m, n; // columns, rows
+	int maxv; // maxvalue for the intensity of the pixels
+	int **matrix; // gray image
+	rgb_t **color; // rgb image
+	int loaded; // tells if an image is loaded
+	int x1, y1, x2, y2; // selection coordinates
 } image_t;
 
-// verifica daca un sir de caractere este numar;
+// Checks if a string is a number
 int is_num(char *s)
 {
 	int n = strlen(s);
-	int cnt = 0; // daca e negativ:
+	int cnt = 0;
 	if (s[0] == '-') {
 		cnt++;
 		for (int i = 1; i < n; ++i)
@@ -43,7 +44,7 @@ int is_num(char *s)
 		return 0;
 }
 
-// transforma un sir de caractere in numar;
+// Turns a string to a number
 int ctoi(char *s)
 {
 	int n = strlen(s);
@@ -59,7 +60,7 @@ int ctoi(char *s)
 	return nr;
 }
 
-// verifica daca un numar este putere a lui 2;
+// Checks if an integer is a power of two
 int power2(int n)
 {
 	int cnt = 0;
@@ -69,7 +70,7 @@ int power2(int n)
 	return cnt == 1;
 }
 
-// restrange valorile la [0, 255];
+// Keeps the value n in the [0, 255] interval
 int clamp(int n)
 {
 	if (n < 0)
@@ -80,7 +81,7 @@ int clamp(int n)
 		return n;
 }
 
-// schimba doua matrici de tip int;
+// Swaps two int matrices
 void swap_matrix(int ***src, int ***dst)
 {
 	int **tmp = *src;
@@ -88,7 +89,7 @@ void swap_matrix(int ***src, int ***dst)
 	*dst = tmp;
 }
 
-// schimba doua matrici de tip color;
+// Swaps two rgb matrices
 void swap_color(rgb_t ***src, rgb_t ***dst)
 {
 	rgb_t **tmp = *src;
@@ -96,22 +97,21 @@ void swap_color(rgb_t ***src, rgb_t ***dst)
 	*dst = tmp;
 }
 
-// sare peste comentarii in fisier;
-// citeste linie cu linie cat timp gaseste comentarii
+/* Skips comments in a file */
 void skip(FILE *in)
 {
 	char s[commmax];
 	while (fgets(s, commmax, in) != 0) {
 		int len = strlen(s);
 		s[strlen(s) - 1] = '\0';
-		if (s[0] != '#') { // nu e comentariu;
+		if (s[0] != '#') { // Not a comment
 			fseek(in, -len, SEEK_CUR);
 			break;
-		} // se repozitioneaza cu cat a citit inapoi;
+		} // Repositions by how much it read backwards
 	}
 }
 
-// elibereaza o matrice de tip int;
+/* Frees an int matrix */
 void free_matrix(int **matrix, int n)
 {
 	for (int i = 0; i < n; i++)
@@ -119,7 +119,7 @@ void free_matrix(int **matrix, int n)
 	free(matrix);
 }
 
-// aloca o matrice de tip int;
+/* Allocates an integer matrix */
 int **malloc_matrix(int rows, int columns)
 {
 	int **matrix = (int **)malloc(rows * sizeof(int *));
@@ -139,7 +139,7 @@ int **malloc_matrix(int rows, int columns)
 	return matrix;
 }
 
-// elibereaza matrice de tip double;
+/* Frees a double matrix */
 void free_double(double **matrix, int n)
 {
 	for (int i = 0; i < n; ++i)
@@ -147,7 +147,7 @@ void free_double(double **matrix, int n)
 	free(matrix);
 }
 
-// aloca matrice de tip double;
+/* Allocates a double matrix */
 double **malloc_double(int rows, int columns)
 {
 	double **matrix = (double **)malloc(rows * sizeof(double *));
@@ -168,7 +168,7 @@ double **malloc_double(int rows, int columns)
 	return matrix;
 }
 
-// elibereaza matrice de tip color;
+/* Frees an RGB image */
 void free_color(rgb_t **color, int n)
 {
 	for (int i = 0; i < n; i++)
@@ -176,7 +176,7 @@ void free_color(rgb_t **color, int n)
 	free(color);
 }
 
-// aloca matrice de tip color;
+/* Allocates memory for an RGB image*/
 rgb_t **malloc_color(int rows, int columns)
 {
 	rgb_t **color = (rgb_t **)malloc(rows * sizeof(rgb_t *));
@@ -196,7 +196,7 @@ rgb_t **malloc_color(int rows, int columns)
 	return color;
 }
 
-// elibereaza o imagine;
+/* Frees an image */
 void free_photo(image_t *photo)
 {
 	if (photo->loaded == 1) {
@@ -208,15 +208,15 @@ void free_photo(image_t *photo)
 	}
 }
 
-// incarca o imagine in program;
+/* Loads an image in the programme */
 int loadfile(image_t *photo, char filename[])
 {
 	FILE *in = fopen(filename, "rb");
 	if (!in) {
 		printf("Failed to load %s\n", filename);
-		free_photo(photo); // elibereaza imaginea
+		free_photo(photo); // Frees the image
 		return 1;
-	} // daca era una incarcata, o elibereaza:
+	} // if one was loaded before, it is freed
 	if (photo->loaded == 1)
 		free_photo(photo);
 	fscanf(in, "%s", photo->format);
@@ -247,8 +247,8 @@ int loadfile(image_t *photo, char filename[])
 				fscanf(in, "%d", &photo->color[i][j].b);
 			}
 	} else {
-		fseek(in, 1, SEEK_CUR); // muta cursorul o pozitie
-		unsigned char charc; // de unde a ramas;
+		fseek(in, 1, SEEK_CUR); // moves the cursor one position
+		unsigned char charc;
 		if (!strcmp(photo->format, "P5")) {
 			photo->matrix = malloc_matrix(photo->n, photo->m);
 			if (!photo->matrix) {
@@ -259,7 +259,7 @@ int loadfile(image_t *photo, char filename[])
 				for (int j = 0; j < photo->m; ++j) {
 					fread(&charc, sizeof(unsigned char), 1, in);
 					photo->matrix[i][j] = (int)charc;
-				} // se citeste matricea ca char si se face cast;
+				}
 		} else if (!strcmp(photo->format, "P6")) {
 			photo->color = malloc_color(photo->n, photo->m);
 			if (!photo->color) {
@@ -278,7 +278,7 @@ int loadfile(image_t *photo, char filename[])
 		}
 	}
 	fclose(in);
-	photo->loaded = 1; // incarcarea a avut succes;
+	photo->loaded = 1;
 	photo->x1 = 0;
 	photo->y1 = 0;
 	photo->x2 = photo->m;
@@ -287,7 +287,7 @@ int loadfile(image_t *photo, char filename[])
 	return 0;
 }
 
-// se imparte in SELECT ALL si SELECT x1 y1 x2 y2:
+/* SELECT ALL and SELECT x1 y1 x2 y2 */
 void select_control(image_t *s, char command[])
 {
 	char *p = strtok(command, "\n ");
@@ -302,8 +302,8 @@ void select_control(image_t *s, char command[])
 		} else {
 			printf("No image loaded\n");
 		}
-	} else { // txi sau tyi sunt valorile temporare pt coordonate;
-		int tx1, tx2, ty1, ty2, n_c = 0; // se verifica daca sunt valide;
+	} else { // txi and tyi are temporary values for the coords
+		int tx1, tx2, ty1, ty2, n_c = 0; // checks if they are valid
 		char com1[commmax], com2[commmax], com3[commmax], com4[commmax];
 		while (p) {
 			if (n_c == 0)
@@ -314,9 +314,9 @@ void select_control(image_t *s, char command[])
 				strcpy(com3, p); // x2;
 			else if (n_c == 3)
 				strcpy(com4, p); // y2
-			n_c++; // numara argumentele de dupa SELECT;
+			n_c++; // counts the arguments after SELECT;
 			p = strtok(NULL, "\n ");
-		} // daca argumentele de dupa select sunt numere, le atribuie;
+		} // if the arguments after SELECT are valid, they are being used
 		if (is_num(com1) && is_num(com2) && is_num(com3) && is_num(com4)) {
 			tx1 = ctoi(com1); ty1 = ctoi(com2);
 			tx2 = ctoi(com3); ty2 = ctoi(com4);
@@ -336,7 +336,7 @@ void select_control(image_t *s, char command[])
 					int aux = ty1;
 					ty1 = ty2;
 					ty2 = aux;
-				} // sunt valide coordonatele temporare, deci le incarca;
+				} // loads the coordinates, they are valid
 				s->x1 = tx1;
 				s->y1 = ty1;
 				s->x2 = tx2;
@@ -349,7 +349,7 @@ void select_control(image_t *s, char command[])
 	}
 }
 
-// functia pentru comanda CROP;
+/* Crop command */
 int crop_control(image_t *pht)
 {
 	if (pht->loaded == 0) {
@@ -365,9 +365,9 @@ int crop_control(image_t *pht)
 		for (int i = 0; i < pht->y2 - pht->y1; ++i)
 			for (int j = 0; j < pht->x2 - pht->x1; ++j)
 				selected[i][j] = pht->matrix[i + pht->y1][j + pht->x1];
-		// schimba imaginea mare cu cea selectata:
-		swap_matrix(&selected, &pht->matrix); // elibereaza selectia
-		free_matrix(selected, pht->n); // care e de fapt imaginea veche;
+		/* swaps the big image with the selected one */
+		swap_matrix(&selected, &pht->matrix); /* frees the old image */
+		free_matrix(selected, pht->n);
 	} else if (!strcmp(pht->format, "P3") || !strcmp(pht->format, "P6")) {
 		rgb_t **selected = malloc_color(pht->y2 - pht->y1, pht->x2 - pht->x1);
 		if (!selected) {
@@ -385,7 +385,7 @@ int crop_control(image_t *pht)
 		swap_color(&selected, &pht->color);
 		free_color(selected, pht->n);
 	}
-	// actualizeaza dimensiunile si coordonatele selectiei;
+	/* Updates dimensions and selection coords */
 	pht->n = pht->y2 - pht->y1;
 	pht->m = pht->x2 - pht->x1;
 	pht->x1 = 0;
@@ -396,7 +396,7 @@ int crop_control(image_t *pht)
 	return 0;
 }
 
-// reda histograma unei imagini;
+/* Prints the histogram of an image */
 int histogram(image_t *pht, char command[])
 {
 	if (!pht->loaded) {
@@ -411,7 +411,7 @@ int histogram(image_t *pht, char command[])
 			else if (n_c == 2)
 				strcpy(com2, p);
 			p = strtok(NULL, "\n ");
-			n_c++; // numara argumentele de dupa HISTOGRAM
+			n_c++; // Counts arguments after Histogram
 		}
 		if (n_c > 3 || n_c < 2) {
 			printf("Invalid command\n");
@@ -436,22 +436,22 @@ int histogram(image_t *pht, char command[])
 					free_photo(pht);
 					free(frequency);
 					return -1;
-				} // calculeaza frecventa pixelilor;
+				} // Computes pixels' frequency
 				for (int i = 0; i < pht->n; ++i)
 					for (int j = 0; j < pht->m; ++j)
 						frequency[pht->matrix[i][j]]++;
 
-				// calculeaza cum se vor grupa valorile pt y binuri;
+				// computes how the values will group for y bins
 				int groups = 256 / y_bin, cnt = 0, maxim = 0;
-				// se calculeaza frecventa din grup in grup;
+				// computes frequency group by group
 				for (int i = 0; i < 256; i += groups) {
 					for (int j = i; j < i + groups; ++j)
 						frequency2[cnt] += frequency[j];
 					if (frequency2[cnt] > maxim)
 						maxim = frequency2[cnt];
-					cnt++; // practic aduna toate frecventele dintr-un grup;
+					cnt++; // basically, adds all the frequencies in a group
 				}
-				// se atribuie noua frecventa.
+				// assigns the new frequency
 				for (int i = 0; i < y_bin; ++i)
 					frequency[i] = frequency2[i];
 				free(frequency2);
@@ -471,7 +471,7 @@ int histogram(image_t *pht, char command[])
 	return 0;
 }
 
-// aplica EQUALIZE asupra unei imagini;
+/* Applies equalize effect to an image */
 int equalize(image_t *photo, char command[])
 {
 	char *p = strtok(command, "\n ");
@@ -487,7 +487,7 @@ int equalize(image_t *photo, char command[])
 	} else if (!strcmp(photo->format, "P3") || !strcmp(photo->format, "P6")) {
 		printf("Black and white image needed\n");
 	} else {
-		// initializez vectorul de frecventa:
+		// frequency array
 		int *h = (int *)calloc(photo->maxv + 1, sizeof(int));
 		if (!h) {
 			fprintf(stderr, "calloc() failed\n");
@@ -514,7 +514,7 @@ int equalize(image_t *photo, char command[])
 	return 0;
 }
 
-// face rotate pentru selectii patratice din interiorul imaginilor gri;
+/* Rotates a selection of an image */
 int rotate(image_t *photo)
 {
 	int **rotatie = malloc_matrix(photo->y2 - photo->y1, photo->y2 - photo->y1);
@@ -532,14 +532,14 @@ int rotate(image_t *photo)
 	}
 	int n = photo->y2 - photo->y1, m = photo->x2 - photo->x1;
 	for (int i = photo->y1; i < photo->y2; ++i)
-		for (int j = photo->x1; j < photo->x2; ++j) // se ia selectia;
+		for (int j = photo->x1; j < photo->x2; ++j) // loads up the selection
 			select[i - photo->y1][j - photo->x1] = photo->matrix[i][j];
 
 	for (int j = 0; j < m; ++j)
 		for (int i = n - 1; i >= 0; --i)
-			rotatie[j][n - i - 1] = select[i][j]; // formula pentru rotatie;
+			rotatie[j][n - i - 1] = select[i][j]; // formula for rotation
 
-	for (int i = photo->y1; i < photo->y2; ++i) // introduce matricea rotita;
+	for (int i = photo->y1; i < photo->y2; ++i) // loads up the rotated matrix
 		for (int j = photo->x1; j < photo->x2; ++j)
 			photo->matrix[i][j] = rotatie[i - photo->y1][j - photo->x1];
 
@@ -548,7 +548,7 @@ int rotate(image_t *photo)
 	return 0;
 }
 
-// roteste selectii patratice din interiorul unei imagini color;
+/* Rotates a selection of a colored image */
 int rotatecolor(image_t *photo)
 {
 	rgb_t **rotate = malloc_color(photo->y2 - photo->y1, photo->y2 - photo->y1);
@@ -586,16 +586,17 @@ int rotatecolor(image_t *photo)
 			photo->color[i][j].b = rotate[i - photo->y1][j - photo->x1].b;
 		}
 	}
+
 	free_color(rotate, photo->y2 - photo->y1);
 	free_color(select, photo->y2 - photo->y1);
 	return 0;
 }
 
-// roteste toata imaginea, de cnt-ori spre dreapta;
+/* Rotates the whole image */
 int rotatefull(image_t *photo, char command[], int cnt)
 {
 	if (!strcmp(photo->format, "P2") || !strcmp(photo->format, "P5")) {
-		for (int k = 0; k < cnt; ++k) { // gri:
+		for (int k = 0; k < cnt; ++k) { // gray
 			int **rotate = malloc_matrix(photo->m, photo->n);
 			if (!rotate) {
 				fprintf(stderr, "malloc() failed @rotate\n");
@@ -644,10 +645,10 @@ int rotatefull(image_t *photo, char command[], int cnt)
 	return 0;
 }
 
-// gestioneaza rotatia pentru selectiile din interiorul imaginii;
+/* Handles rotations for selections of an image */
 int rotate_angle(image_t *photo, char command[], int cnt)
 {
-	// rotatie gri:
+	// gray rotation:
 	if (!strcmp(photo->format, "P2") || !strcmp(photo->format, "P5")) {
 		for (int i = 0; i < cnt; ++i) {
 			int okrot = rotate(photo);
@@ -656,7 +657,7 @@ int rotate_angle(image_t *photo, char command[], int cnt)
 				return -1;
 			}
 		}
-		// rotatie color:
+		// RGB rotation:
 	} else {
 		for (int i = 0; i < cnt; ++i) {
 			int okrot = rotatecolor(photo);
@@ -670,7 +671,7 @@ int rotate_angle(image_t *photo, char command[], int cnt)
 	return 0;
 }
 
-// functia pentru comanda ROTATE:
+/* Rotate driver */
 int rotatecommand(image_t *photo, char command[])
 {
 	int angle;
@@ -718,14 +719,14 @@ int rotatecommand(image_t *photo, char command[])
 	return 0;
 }
 
-// functia care aplica filtrul unei imagini;
+/* Applies a filter to an image */
 int apply_it(image_t *s, double **model)
 {
 	rgb_t **copy = malloc_color(s->n, s->m);
 	if (!copy) {
 		fprintf(stderr, "malloc() failed at apply it\n");
 		return -1;
-	} // operatiile se fac pe o matrice auxiliara;
+	} // Operations are performed on an auxiliary matrix
 	for (int i = 0; i < s->n; ++i) {
 		for (int j = 0; j < s->m; ++j) {
 			copy[i][j].r = s->color[i][j].r;
@@ -735,7 +736,7 @@ int apply_it(image_t *s, double **model)
 	}
 	for (int i = s->y1; i < s->y2; ++i) {
 		for (int j = s->x1; j < s->x2; ++j) {
-			// marginile nu se iau in calcul:
+			// edges are not taken into account
 			if (i > 0 && i < s->n - 1 && j > 0 && j < s->m - 1) {
 				double sred = 0, sgreen = 0, sblue = 0;
 				for (int k = i - 1, p = 0; k < i + 2; ++k, ++p) {
@@ -761,7 +762,7 @@ int apply_it(image_t *s, double **model)
 			}
 		}
 	}
-	// reintroduc matricea;
+
 	for (int i = 0; i < s->n; ++i) {
 		for (int j = 0; j < s->m; ++j) {
 			s->color[i][j].r = copy[i][j].r;
@@ -773,7 +774,7 @@ int apply_it(image_t *s, double **model)
 	return 0;
 }
 
-// construieste matricea EDGE;
+/* Builds EDGE matrix */
 void build_edge(double ***edge)
 {
 	for (int i = 0; i < 3; ++i) {
@@ -786,7 +787,7 @@ void build_edge(double ***edge)
 	}
 }
 
-// construieste matricea SHARPEN;
+/* Builds SHARPEN matrix */
 void build_sharpen(double ***sharpen)
 {
 	for (int i = 0; i < 3; ++i) {
@@ -803,7 +804,7 @@ void build_sharpen(double ***sharpen)
 	}
 }
 
-// construieste matricea pt GAUSSIAN_BLUR:
+/* Builds GAUSSIAN_BLUR matrix*/
 void build_gauss(double ***gauss)
 {
 	for (int i = 0; i < 3; ++i) {
@@ -820,7 +821,7 @@ void build_gauss(double ***gauss)
 	}
 }
 
-// gestioneaza efectele care se aplica imaginii;
+/* Handles the filters applied to an image */
 int apply_control(image_t *photo, char command[])
 {
 	if (!strcmp(command, "EDGE")) {
@@ -890,7 +891,7 @@ int apply_control(image_t *photo, char command[])
 	}
 }
 
-// gestioneaza comanda apply:
+/* Handles apply command */
 int apply_centre(image_t *photo, char comm[])
 {
 	char *p = strtok(comm, "\n "), command[commmax];
@@ -919,7 +920,7 @@ int apply_centre(image_t *photo, char comm[])
 	return 0;
 }
 
-// Salveaza text sau binar;
+/* Saves file in text or binary format */
 void save_type(image_t *pht, char filename[], int text)
 {
 	FILE *out = fopen(filename, "wb");
@@ -957,7 +958,7 @@ void save_type(image_t *pht, char filename[], int text)
 				for (int j = 0; j < pht->m; ++j) {
 					charc = (unsigned char)pht->matrix[i][j];
 					fwrite(&charc, sizeof(unsigned char), 1, out);
-				} // salveaza pixelii sub forma de unsigned char;
+				} // Saves pixels as unsigned char values
 		} else if (!strcmp(pht->format, "P3") || !strcmp(pht->format, "P6")) {
 			fprintf(out, "%s\n", "P6");
 			fprintf(out, "%d %d\n%d\n", pht->m, pht->n, pht->maxv);
@@ -976,7 +977,7 @@ void save_type(image_t *pht, char filename[], int text)
 	fclose(out);
 }
 
-// comanda SAVE:
+/* Save command*/
 void save(image_t *photo, char command[])
 {
 	char filename[commmax];
@@ -986,13 +987,13 @@ void save(image_t *photo, char command[])
 		if (n_c == 1)
 			strcpy(filename, p);
 		else if (n_c == 2)
-			break; // se pastreaza valoarea lui p;
+			break; // p is kept
 		p = strtok(NULL, "\n ");
 		n_c++;
 	}
 	int text = 0;
 	if (n_c == 3 && !strcmp(p, "ascii"))
-		text = 1; // se va salva text;
+		text = 1; // saves in text format
 	if (photo->loaded == 0) {
 		printf("No image loaded\n");
 	} else {
@@ -1001,7 +1002,7 @@ void save(image_t *photo, char command[])
 	}
 }
 
-// comanda EXIT:
+/* Exit command */
 void exitC(image_t *photo)
 {
 	if (photo->loaded == 0)
@@ -1014,19 +1015,19 @@ int main(void)
 {
 	image_t photo;
 	char longcomm[commmax];
-	photo.loaded = 0; // initial nu este incarcata nicio imagine;
+	photo.loaded = 0; // no image loaded initially
 	int ok = 1;
 	while (ok) {
-		char copy[commmax]; // retine toata linia;
-		int n_c = 0; // numara argumentele liniei;
+		char copy[commmax]; // holds the line
+		int n_c = 0; // counts line args
 		char command[commmax], command2[commmax];
 		fgets(longcomm, commmax, stdin);
 		strcpy(copy, longcomm);
 		char *p = strtok(longcomm, "\n ");
 		while (p) {
-			if (n_c == 0) // prima comanda:
+			if (n_c == 0) // first command
 				strcpy(command, p);
-			else if (n_c == 1) // a doua comanda, daca exista:
+			else if (n_c == 1) // second
 				strcpy(command2, p);
 			n_c++;
 			p = strtok(NULL, "\n ");
